@@ -7,7 +7,6 @@ mod lib;
 
 fn main() -> io::Result<()> {
     // let executor = single_thread::Executor::new(1024);
-    // executor.block_on(server())
     let executor: multi_thread::Executor<schedulers::work_stealing::WorkStealingScheduler> =
         multi_thread::Executor::new();
     executor.block_on(server());
@@ -20,7 +19,7 @@ async fn server() {
     while let Ok(next) = incoming.try_next().await {
         match next {
             Some(stream) => multi_thread::spawn(handler(stream)),
-            // Some(stream) => handler(stream).await,
+            // Some(stream) => single_thread::spawn(handler(stream)),
             None => {
                 eprintln!("No incoming stream.");
                 break;

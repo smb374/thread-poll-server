@@ -101,10 +101,8 @@ impl Worker {
         let mut select = Select::new();
         let task_index = select.recv(&self.task_rx);
         let rx_index = select.recv(&self.rx);
-        let _scope = super::enter::enter().unwrap();
         loop {
             let oper = select.select();
-            println!("worker {} woke up.", self._idx);
             match oper.index() {
                 i if i == task_index => {
                     if let Ok(task) = oper.recv(&self.task_rx) {

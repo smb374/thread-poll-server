@@ -1,8 +1,6 @@
 pub mod round_robin;
 pub mod work_stealing;
 
-use super::enter;
-
 use std::ops::DerefMut;
 use std::sync::Arc;
 

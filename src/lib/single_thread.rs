@@ -4,7 +4,6 @@ use futures_task::{waker_ref, ArcWake};
 use once_cell::sync::Lazy;
 use std::{
     future::Future,
-    io,
     sync::{
         mpsc::{self, Receiver, SyncSender},
         Arc, Mutex,
@@ -15,7 +14,7 @@ use std::{
 static SPAWNER: Lazy<Mutex<Option<Spawner>>> = Lazy::new(|| Mutex::new(None));
 
 struct Task {
-    future: Mutex<Option<Boxed<io::Result<()>>>>,
+    future: Mutex<Option<Boxed<()>>>,
     tx: SyncSender<Message>,
 }
 
@@ -40,29 +39,29 @@ impl Executor {
         Self { rx }
     }
 
-    fn run(&self) -> io::Result<()> {
+    fn run(&self) {
         let mut reactor = reactor::Reactor::new();
         reactor.setup_registry();
         loop {
             match self.rx.try_recv() {
                 Ok(msg) => match msg {
                     // run task
-                    Message::Run(task) => task.run()?,
+                    Message::Run(task) => task.run(),
                     // received disconnect message, cleanup and exit.
-                    Message::Close => break Ok(()),
+                    Message::Close => break,
                 },
                 Err(mpsc::TryRecvError::Empty) => {
                     // mio wait for io harvest
-                    reactor.wait(None)?;
+                    reactor.wait(None).unwrap();
                 }
                 // no one is connected, bye.
-                Err(mpsc::TryRecvError::Disconnected) => break Ok(()),
+                Err(mpsc::TryRecvError::Disconnected) => break,
             }
         }
     }
-    pub fn block_on<F>(&self, future: F) -> io::Result<()>
+    pub fn block_on<F>(&self, future: F)
     where
-        F: Future<Output = io::Result<()>> + 'static + Send,
+        F: Future<Output = ()> + 'static + Send,
     {
         spawn(future);
         self.run()
@@ -81,7 +80,7 @@ impl Drop for Executor {
 }
 
 impl Task {
-    pub fn run(self: &Arc<Self>) -> io::Result<()> {
+    pub fn run(self: &Arc<Self>) {
         let mut future_slot = self.future.lock().unwrap();
         // run *ONCE*
         if let Some(mut future) = future_slot.take() {
@@ -94,7 +93,6 @@ impl Task {
                 }
             };
         }
-        Ok(())
     }
 }
 
@@ -111,13 +109,14 @@ impl ArcWake for Task {
 impl Spawner {
     fn spawn<F>(&self, fut: F)
     where
-        F: Future<Output = io::Result<()>> + 'static + Send,
+        F: Future<Output = ()> + 'static + Send,
     {
         let future = fut.boxed();
         let task = Arc::new(Task {
             future: Mutex::new(Some(future)),
             tx: self.tx.clone(),
         });
+        // let _scope = super::enter::enter().unwrap();
         self.tx
             .send(Message::Run(task))
             .expect("too many task queued");
@@ -126,7 +125,7 @@ impl Spawner {
 
 pub fn spawn<F>(fut: F)
 where
-    F: Future<Output = io::Result<()>> + 'static + Send,
+    F: Future<Output = ()> + 'static + Send,
 {
     if let Some(spawner) = SPAWNER.lock().unwrap().as_ref() {
         spawner.spawn(fut);
