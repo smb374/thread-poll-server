@@ -123,7 +123,6 @@ impl TaskRunner {
                 }
                 None => {
                     let mut wakeup_count = 0;
-                    let mut steal_count = 0;
                     // First push in all the woke up Task, non-blocking.
                     loop {
                         match self.task_rx.try_recv() {
@@ -139,11 +138,8 @@ impl TaskRunner {
                         continue;
                     }
                     // If we are starving, start stealing.
-                    while let Some(task) = self.steal_task() {
-                        steal_count += 1;
+                    if let Some(task) = self.steal_task() {
                         self.worker.push(task);
-                    }
-                    if steal_count > 0 {
                         continue;
                     }
                     // Finally, wait for a single wakeup task or broadcast signal from scheduler
@@ -168,7 +164,7 @@ impl TaskRunner {
         // will generate *ONE* task at a time
         std::iter::repeat_with(|| {
             self.injector
-                .steal()
+                .steal_batch_and_pop(&self.worker)
                 .or_else(|| self.stealers.iter().map(|s| s.steal()).collect())
         })
         .find(|s| !s.is_retry())
