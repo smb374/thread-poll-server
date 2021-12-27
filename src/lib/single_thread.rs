@@ -41,6 +41,8 @@ impl Executor {
     }
 
     fn run(&self) -> io::Result<()> {
+        let mut reactor = reactor::Reactor::new();
+        reactor.setup_registry();
         loop {
             match self.rx.try_recv() {
                 Ok(msg) => match msg {
@@ -51,7 +53,7 @@ impl Executor {
                 },
                 Err(mpsc::TryRecvError::Empty) => {
                     // mio wait for io harvest
-                    // reactor::wait(None)?;
+                    reactor.wait(None)?;
                 }
                 // no one is connected, bye.
                 Err(mpsc::TryRecvError::Disconnected) => break Ok(()),
