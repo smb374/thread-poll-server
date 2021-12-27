@@ -1,0 +1,19 @@
+[package]
+name = "thread-poll-server"
+version = "0.1.0"
+edition = "2021"
+
+authors = ["Po-Yeh Chen <smb374.cs08@nctu.edu.tw>"]
+license-file = "LICENSE"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures-lite = "~1.12"
+futures-task = "0.3.17"
+mio = { version = "0.8.0", features = ["os-poll", "os-ext", "net"] }
+once_cell = "1.9.0"
+num_cpus = "1.13.1"
+parking_lot = "0.11.2"
+simple-signal = "1.1.1"
+crossbeam = "0.8.1"
